@@ -1,6 +1,6 @@
 wp_content/
 .env
-!.enc.example
+!.env.example
 
 wp-content/uploads/
 wp-content/upgrade/

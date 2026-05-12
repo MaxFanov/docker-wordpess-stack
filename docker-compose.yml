@@ -47,6 +47,7 @@ services:
       - ./wp-content:/var/www/html/wp-content
       - ./php.ini:/usr/local/etc/php/conf.d/z-custom-php.ini
       - ./wp-config.php:/var/www/html/wp-config.php
+      - ./setup.sh:/usr/local/bin/setup.sh
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: ${DB_USER}

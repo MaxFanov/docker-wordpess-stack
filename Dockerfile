@@ -1,5 +1,5 @@
-ARG PHP_VERSION=latest
-FROM wordpress:${PHP_VERSION}-fpm-alpine
+ARG PHP_VERSION=fpm
+FROM wordpress:${PHP_VERSION}-alpine 
 
 RUN apk add --no-cache $PHPIZE_DEPS shadow \
     && pecl install redis \
