@@ -12,7 +12,6 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION}
     container_name: ${PROJECT_NAME}_app
-    # Removed user: "0:0" so FPM handles workers correctly
     volumes:
       - wp_core:/var/www/html
       - ./wp-content:/var/www/html/wp-content
