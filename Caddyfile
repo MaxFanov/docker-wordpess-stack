@@ -1,0 +1,21 @@
+{$SITE_ADDRESS:http://localhost} {
+    root * /var/www/html
+    encode zstd gzip
+
+    # Security: Block sensitive files and hidden dotfiles
+    @disallowed {
+        path /wp-config.php /xmlrpc.php /readme.html /license.txt *.sql
+        path */.*
+    }
+    respond @disallowed 403
+
+    # Security: Prevent PHP execution in uploads
+    @uploads_php path_regexp ^/wp-content/uploads/.*\.php$
+    respond @uploads_php 403
+
+    # Core Logic: FastCGI for PHP
+    # Handled internally: if file exists, serve it; if not, rewrite to index.php
+    php_fastcgi {$PHP_UPSTREAM:wordpress:9000}
+
+    file_server
+}

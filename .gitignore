@@ -1,0 +1,11 @@
+wp_content/
+.env
+!.enc.example
+
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/cache/
+wp-content/blogs.dir/
+
+.DS_Store
+Thumbs.db

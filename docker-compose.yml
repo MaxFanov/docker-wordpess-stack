@@ -1,0 +1,129 @@
+services:
+  mailpit:
+    image: axllent/mailpit
+    container_name: ${PROJECT_NAME}_mail
+    ports:
+      - "${MAIL_UI_PORT}:8025"
+    restart: always
+ 
+  wordpress:
+    build: 
+      context: .
+      args:
+        PHP_VERSION: ${PHP_VERSION}
+    container_name: ${PROJECT_NAME}_app
+    # Removed user: "0:0" so FPM handles workers correctly
+    volumes:
+      - wp_core:/var/www/html
+      - ./wp-content:/var/www/html/wp-content
+      - ./php.ini:/usr/local/etc/php/conf.d/z-custom-php.ini
+      - ./wp-config.php:/var/www/html/wp-config.php
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DEBUG: 1
+      WORDPRESS_AUTH_KEY: ${AUTH_KEY}
+      WORDPRESS_SECURE_AUTH_KEY: ${SECURE_AUTH_KEY}
+      WORDPRESS_LOGGED_IN_KEY: ${LOGGED_IN_KEY}
+      WORDPRESS_NONCE_KEY: ${NONCE_KEY}
+      WORDPRESS_AUTH_SALT: ${AUTH_SALT}
+      WORDPRESS_SECURE_AUTH_SALT: ${SECURE_AUTH_SALT}
+      WORDPRESS_LOGGED_IN_SALT: ${LOGGED_IN_SALT}
+      WORDPRESS_NONCE_SALT: ${NONCE_SALT}
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: always
+
+  wp-cli:
+    image: wordpress:cli
+    container_name: ${PROJECT_NAME}_cli
+    user: "1000:1000"
+    volumes:
+      - wp_core:/var/www/html
+      - ./wp-content:/var/www/html/wp-content
+      - ./php.ini:/usr/local/etc/php/conf.d/z-custom-php.ini
+      - ./wp-config.php:/var/www/html/wp-config.php
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+    depends_on:
+      - db
+      - wordpress
+    entrypoint: ["/bin/sh", "-c", "sh /usr/local/bin/setup.sh && tail -f /dev/null"]
+
+  wp-cron:
+    image: alpine
+    container_name: ${PROJECT_NAME}_cron
+    command: sh -c "while true; do wget -q -O - http://wordpress/wp-cron.php?doing_wp_cron > /dev/null 2>&1; sleep 60; done"
+    depends_on:
+      - wordpress
+    restart: always
+
+  caddy:
+    image: caddy:alpine
+    container_name: ${PROJECT_NAME}_server
+    ports:
+      - "8080:80"
+      - "8443:443"
+    environment:
+      - SITE_ADDRESS=${SITE_ADDRESS:-http://localhost:80}
+      - PHP_UPSTREAM=${PHP_UPSTREAM:-wordpress:9000}
+    volumes:
+      - wp_core:/var/www/html
+      - ./wp-content:/var/www/html/wp-content
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - wordpress
+  
+  redis:
+    image: redis:alpine
+    container_name: ${PROJECT_NAME}_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  db:
+    image: mysql:8.${MYSQL_VERSION}
+    ports:
+      - "${DB_PORT}:3306"
+    command:
+      [
+        "mysqld",
+        "--skip-name-resolve",
+        "--innodb-flush-log-at-trx-commit=2",
+        "--innodb-log-buffer-size=32M",
+        "--innodb-buffer-pool-size=512M",
+        "--default-authentication-plugin=mysql_native_password",
+      ]
+    container_name: ${PROJECT_NAME}_db
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./dump.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: always
+
+volumes:
+  wp_core:
+  db_data:
+  caddy_data:
+  caddy_config:
+  redis_data:
