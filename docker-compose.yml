@@ -93,7 +93,7 @@ services:
     restart: always
 
   db:
-    image: mysql:8.${MYSQL_VERSION}
+    image: mysql:${MYSQL_VERSION}
     ports:
       - "${DB_PORT}:3306"
     command:
